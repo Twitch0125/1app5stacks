@@ -8,19 +8,32 @@ async function vote(winner: Pokemon, index: number) {
   fetching.value = true;
   console.log("voted for", winner.name);
   const loser = twoPokemon.value![index === 0 ? 1 : 0];
-  $fetch("/recordBattle", {
-    method: "POST",
-    body: { winner: winner.dexNumber, loser: loser!.dexNumber },
-  }).finally(() => {
+  try {
+    await $fetch("/recordBattle", {
+      method: "POST",
+      body: { winner: winner.dexNumber, loser: loser!.dexNumber },
+    });
+    twoPokemon.value = nextTwoPokemon.value;
+    await refresh();
+  } finally {
     fetching.value = false;
-    refreshNuxtData();
-  });
+  }
 }
-const { data: twoPokemon, status } = useLazyFetch("/getTwoRandomPokemon");
+const twoPokemon = shallowRef([]);
+const { data } = await useLazyFetch("/getTwoRandomPokemon");
+twoPokemon.value = data.value;
+const {
+  data: nextTwoPokemon,
+  refresh,
+  status,
+} = await useLazyFetch("/getTwoRandomPokemon");
 </script>
 
 <template>
   <div class="container mx-auto px-4">
+    <div class="hidden">
+      <PokemonSprite v-for="pokemon of nextTwoPokemon" :pokemon />
+    </div>
     <template v-if="status === 'idle'">
       <div class="flex justify-center gap-16 items-center min-h-[80vh]">
         LOADING!!!
@@ -40,7 +53,7 @@ const { data: twoPokemon, status } = useLazyFetch("/getTwoRandomPokemon");
         </div>
       </div>
     </template>
-    <div class="flex justify-center gap-16 items-center min-h-[80vh]">
+    <div v-else class="flex justify-center gap-16 items-center min-h-[80vh]">
       <div
         v-for="(pokemon, index) of twoPokemon"
         :key="pokemon.dexNumber"
